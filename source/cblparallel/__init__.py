@@ -43,7 +43,7 @@ def start_port_forwarding():
     subprocess.call(cmd.split(' '))
     cmd = 'ssh -N -f -R %d:localhost:22 -p %d %s@localhost' % (REMOTE_TO_HOME_PORT, HOME_TO_REMOTE_PORT, USERNAME)
     subprocess.call(cmd.split(' '))
-    
+
 if LOCATION=='home':
     start_port_forwarding()
 
@@ -57,23 +57,23 @@ def setup():
      - Local directory on fear where temporary files are stored
     '''
     pass
-    
+
 def create_temp_file(extension):
     if LOCATION=='home':
         return mkstemp_safe(HOME_TEMP_PATH, extension)
     else:
         return mkstemp_safe(LOCAL_TEMP_PATH, extension)
-        
+
 def copy_to_remote(file_name):
     with pyfear.fear(via_gate=(LOCATION=='home')) as fear:
         fear.copy_to_temp(file_name)
-      
+
 def remove_temp_file(file_name, local_computation=False):
     os.remove(file_name)
     if not local_computation:
         with pyfear.fear(via_gate=(LOCATION=='home')) as fear:
             fear.rm(os.path.join(REMOTE_TEMP_PATH, os.path.split(file_name)[-1]))
-        
+
 def gpml_path(local_computation=True):
     if not local_computation:
         return REMOTE_GPML_PATH
@@ -81,7 +81,7 @@ def gpml_path(local_computation=True):
         return LOCAL_GPML_PATH
     else:
         return HOME_GPML_PATH
-    
+
 #### TODO - Combine these functions? - they share much code
 ####      - Maybe this could be achieved by creating a generic object like fear that (re)moves files etc.
 ####      - but either does this on fear, on local machine, or on fear via gate.eng.cam.ac.uk
@@ -91,7 +91,7 @@ def run_batch_on_fear(scripts, language='python', job_check_sleep=30, file_copy_
     Receives a list of python scripts to run
 
     Assumes the code has an output file - i.e. %(output_file)s - that will be managed by this function
-    
+
     Returns a list of local file names where the code has presumably stored output
     '''
     # Define some code constants
@@ -110,7 +110,7 @@ maxNumCompThreads(1);
     matlab_path_code = '''
 addpath(genpath('%s'))
 ''' % REMOTE_MATLAB_PATH
-    
+
     #### TODO - allow port forwarding / tunneling - copy to machine on network with more disk space than fear, then copy from that machine?
     #### FIXME - Now does port forwarding but with fixed port numbers = bad
     #### TODO - Fix port forard leak
@@ -133,7 +133,7 @@ if not timeoutCommand(cmd='scp -P %(r2rport)d -i %(rsa_home)s %(output_file)s %(
        'output_file' : '%(output_file)s',
        'home_user' : HOME_USERNAME,
        'local_temp_path' : HOME_TEMP_PATH}
-    else:    
+    else:
         python_transfer_code = '''
 #from util import timeoutCommand
 from subprocess_timeout import timeoutCommand
@@ -146,7 +146,7 @@ if not timeoutCommand(cmd='scp -i %(rsa_key)s %(output_file)s %(username)s@%(loc
        'local_host' : LOCAL_HOST,
        'local_temp_path' : LOCAL_TEMP_PATH,
        'timeout' : file_copy_timeout}
-    
+
     #### TODO - make this location independent
     #### TODO - does this suffer from the instabilities that lead to the verbosity of the python command above
     if LOCATION == 'home':
@@ -174,20 +174,20 @@ system('scp -o ConnectTimeout=%(timeout)d -i %(rsa_key)s %(output_file)s %(usern
        'timeout' : file_copy_timeout,
        'local_host' : LOCAL_HOST,
        'local_temp_path' : LOCAL_TEMP_PATH}
-       
+
 #    python_completion_code = '''
 #print 'Writing completion flag'
 #with open('%(flag_file)s', 'w') as f:
 #    f.write('Goodbye, World')
 #print "I'll bite your legs off!"
 #quit()
-#'''       
+#'''
     python_completion_code = '''
 print "I will bite your legs off!"
 quit()
 '''
-  
-    #### TODO - Is this completely stable       
+
+    #### TODO - Is this completely stable
 #    matlab_completion_code = '''
 #fprintf('\\nWriting completion flag\\n');
 #ID = fopen('%(flag_file)s', 'w');
@@ -200,19 +200,19 @@ quit()
 fprintf('\\nGoodbye, World\\n');
 quit()
 """
-    
+
     # Open a connection to fear as a with block - ensures connection is closed
     with pyfear.fear(via_gate=(LOCATION=='home')) as fear:
-    
+
         if LOCATION == 'local':
             temp_dir = LOCAL_TEMP_PATH
         else:
             temp_dir = HOME_TEMP_PATH
-            
-        if bundle_size > 1:  
-            
-            # Build bundled scripts 
-            
+
+        if bundle_size > 1:
+
+            # Build bundled scripts
+
             current_script = ''
             current_outputs = []
             shell_files = []
@@ -221,17 +221,17 @@ quit()
             bundled = 0
             for code in scripts:
                 bundled += 1
-                
+
                 # Build up a bundle of scripts
                 if language == 'python':
                     individual_script = python_path_code + code + python_transfer_code
                 elif language == 'matlab':
                     individual_script = matlab_path_code + code + matlab_transfer_code
                 individual_output_file = mkstemp_safe(temp_dir, '.out')
-                
+
                 current_script += individual_script % {'output_file': os.path.join(REMOTE_SCRATCH_PATH, os.path.split(individual_output_file)[-1])}
                 current_outputs.append(individual_output_file)
-                
+
                 if bundled >= bundle_size:
                     # Complete the code and create files
                     if language == 'python':
@@ -256,8 +256,8 @@ quit()
                     # Reset
                     bundled = 0
                     current_script = ''
-                    current_outputs = []      
-                       
+                    current_outputs = []
+
             if bundled > 0:
                 # Complete the code and create files
                 if language == 'python':
@@ -282,26 +282,26 @@ quit()
                 # Reset
                 bundled = 0
                 current_script = ''
-                current_outputs = []     
-                                
-            job_ids = [None] * len(script_files) 
+                current_outputs = []
+
+            job_ids = [None] * len(script_files)
             fear_finished = False
-            job_finished = [False] * len(script_files) 
+            job_finished = [False] * len(script_files)
             fail_count = [0] * len(script_files)
-            
+
         else: # bundle_size = 0
-    
+
             # Initialise lists of file locations job ids
             shell_files = [None] * len(scripts)
             script_files = [None] * len(scripts)
             output_files = [None] * len(scripts)
             stdout_files = [None] * len(scripts)
             flag_files = [None] * len(scripts) # TODO - Am I used anymore?
-            job_ids = [None] * len(scripts) 
+            job_ids = [None] * len(scripts)
             fear_finished = False
-            job_finished = [False] * len(scripts) 
+            job_finished = [False] * len(scripts)
             fail_count = [0] * len(scripts)
-            
+
             # Modify all scripts and create local temporary files
 
             if verbose:
@@ -333,7 +333,7 @@ quit()
                     elif language == 'matlab':
                         f.write('cd ' + REMOTE_TEMP_PATH + ';\n' + REMOTE_MATLAB + ' -nosplash -nojvm -nodisplay -singleCompThread -r ' + \
                                 os.path.split(script_files[i])[-1].split('.')[0] + '\n')
-                                    
+
         BUF_SIZE = 25
         script_buffer = []
         job_number_buffer = []
@@ -371,7 +371,7 @@ quit()
                     for (job_number, job_id) in zip(job_number_buffer, new_ids):
                         if not string_is_int(job_id):
                             print 'Incorrect job id ''%s'' for script %s returned - resumbitting later' % (job_id, os.path.split(shell_files[job_number])[-1])
-                            fail_count[job_number] += 1 
+                            fail_count[job_number] += 1
                             fear.rm(os.path.join(REMOTE_TEMP_PATH, os.path.split(script_files[job_number])[-1]))
                             fear.rm(os.path.join(REMOTE_TEMP_PATH, os.path.split(shell_files[job_number])[-1]))
                         else:
@@ -379,7 +379,7 @@ quit()
                             jobs_alive += 1
                     script_buffer = []
                     job_number_buffer = []
-            
+
                 #fear.qstat()
                 #jobs_alive = fear.jobs_alive(update=False)
                 # Does the job need to be run and can we run it?
@@ -393,17 +393,17 @@ quit()
                     # Submit the job to fear
                     if verbose:
                         print 'Submitting job %d of %d' % (i + 1, len(scripts)),
-                        
+
                     #job_ids[i] = fear.qsub(os.path.join(REMOTE_TEMP_PATH, os.path.split(shell_files[i])[-1]), verbose=verbose) # Hide path constant
                     #if not string_is_int(job_ids[i]):
                     #    print 'Incorrect job id ''%s'' for script %s returned - resumbitting later' % (job_ids[i], os.path.split(shell_files[i])[-1])
                     #    job_ids[i] = None
-                    #    fail_count[i] += 1                        
+                    #    fail_count[i] += 1
                     #    fear.rm(os.path.join(REMOTE_TEMP_PATH, os.path.split(script_files[i])[-1]))
                     #    fear.rm(os.path.join(REMOTE_TEMP_PATH, os.path.split(shell_files[i])[-1]))
                     #else:
                     #    jobs_alive += 1
-                    
+
                     script_buffer.append(os.path.join(REMOTE_TEMP_PATH, os.path.split(shell_files[i])[-1]))
                     job_number_buffer.append(i)
 
@@ -444,7 +444,7 @@ quit()
                             # Save job id for file deletion
                             old_job_id = job_ids[i]
                             job_ids[i] = None
-                            fail_count[i] += 1  
+                            fail_count[i] += 1
                         else:
                             # Job has finished successfully
                             job_finished[i] = True
@@ -473,9 +473,9 @@ quit()
                         # Tidy up local temporary directory
                         #os.remove(script_files[i])
                         #os.remove(shell_files[i])
-                        #os.remove(flag_files[i])    
-                        job_ids[i] = None                     
-                            
+                        #os.remove(flag_files[i])
+                        job_ids[i] = None
+
                     elif not (fear.job_queued(job_ids[i]) or fear.job_running(job_ids[i]) \
                               or fear.job_loading(job_ids[i])):
                         # Job has some status other than running, queuing or loading - something is wrong, delete it
@@ -483,7 +483,7 @@ quit()
                         should_sleep = False
                         old_job_id = job_ids[i]
                         fear.qdel(job_ids[i])
-                        fail_count[i] += 1  
+                        fail_count[i] += 1
                         print 'Shell script %s job_id %s stuck, deleting' % (os.path.split(shell_files[i])[-1], job_ids[i])
                         #### TODO - remove this code duplication
                         # Tidy up fear
@@ -498,15 +498,15 @@ quit()
                         # Tidy up local temporary directory
                         #os.remove(script_files[i])
                         #os.remove(shell_files[i])
-                        #os.remove(flag_files[i])    
-                        job_ids[i] = None   
+                        #os.remove(flag_files[i])
+                        job_ids[i] = None
             # Flush the job buffer if non-empty
             if len(script_buffer) > 0:
                 new_ids = fear.qsub_multi(script_buffer, verbose=verbose)
                 for (job_number, job_id) in zip(job_number_buffer, new_ids):
                     if not string_is_int(job_id):
                         print 'Incorrect job id ''%s'' for script %s returned - resumbitting later' % (job_id, os.path.split(shell_files[job_number])[-1])
-                        fail_count[job_number] += 1                        
+                        fail_count[job_number] += 1
                         fear.rm(os.path.join(REMOTE_TEMP_PATH, os.path.split(script_files[job_number])[-1]))
                         fear.rm(os.path.join(REMOTE_TEMP_PATH, os.path.split(shell_files[job_number])[-1]))
                     else:
@@ -516,7 +516,7 @@ quit()
                 job_number_buffer = []
             # Are we finished?
             if all(job_finished):
-                fear_finished = True    
+                fear_finished = True
             elif should_sleep:
                 print '%d of %d jobs complete' % (sum(job_finished), len(job_finished))
                 if verbose:
@@ -542,14 +542,14 @@ quit()
         return [output_file for list_of_files in output_files for output_file in list_of_files]
     else:
         return output_files
-    
+
 def run_batch_locally(scripts, language='python', paths=[], max_cpu=0.9, max_mem=0.9, submit_sleep=1, job_check_sleep=30, \
                       verbose=True, max_files_open=100, max_running_jobs=10, single_thread=True):
     '''
     Receives a list of python scripts to run
 
     Assumes the code has an output file that will be managed by this function
-    
+
     Returns a list of local file names where the code has presumably stored output
     '''
     # Define some code constants
@@ -568,7 +568,7 @@ sys.path.append('%s')
     matlab_path_code = '''
 addpath(genpath('%s'))
 '''
-       
+
     python_completion_code = '''
 print 'Writing completion flag'
 with open('%(flag_file)s', 'w') as f:
@@ -576,8 +576,8 @@ with open('%(flag_file)s', 'w') as f:
 print "Goodbye, World"
 quit()
 '''
-  
-    #### TODO - Is this completely stable       
+
+    #### TODO - Is this completely stable
     matlab_completion_code = '''
 fprintf('\\nWriting completion flag\\n');
 ID = fopen('%(flag_file)s', 'w');
@@ -586,7 +586,7 @@ fclose(ID);
 fprintf('\\nGoodbye, World\\n');
 quit()
 '''
-    
+
     # Initialise lists of file locations job ids
     shell_files = [None] * len(scripts)
     script_files = [None] * len(scripts)
@@ -596,10 +596,11 @@ quit()
     flag_files = [None] * len(scripts)
     processes = [None] * len(scripts)
     fear_finished = False
-    job_finished = [False] * len(scripts)  
-    
+    job_finished = [False] * len(scripts)
+
     files_open = 0
 
+    verbose = True
     # Loop through jobs, submitting jobs whenever CPU usage low enough, re-submitting failed jobs
     if not verbose:
         prog = Progress(len(scripts))
@@ -651,24 +652,26 @@ quit()
                             else:
                                 matlab_path = LOCAL_MATLAB
                             if single_thread:
-                                f.write('cd ' + os.path.split(script_files[i])[0] + ';\n' + matlab_path + ' -nosplash -nojvm -nodisplay -singleCompThread -r ' + \
+                                f.write('cd "' + os.path.split(script_files[i])[0] + '";\n"' + matlab_path + '" -nosplash -nojvm -nodisplay -singleCompThread -r ' + \
                                         os.path.split(script_files[i])[-1].split('.')[0] + '\n')
                             else:
                                 f.write('cd ' + os.path.split(script_files[i])[0] + ';\n' + matlab_path + ' -nosplash -nojvm -nodisplay -r ' + \
                                         os.path.split(script_files[i])[-1].split('.')[0] + '\n')
+
                     # Start running the job
+                    assert verbose
                     if verbose:
                         print 'Submitting job %d of %d' % (i + 1, len(scripts))
                     stdout_file_handles[i] = open(stdout_files[i], 'w')
                     files_open = files_open + 1
-                    processes[i] = subprocess.Popen(['sh', shell_files[i]], stdout = stdout_file_handles[i]);
+                    processes[i] = subprocess.Popen([shell_files[i]], stdout = stdout_file_handles[i], shell=True);
                     # Sleep for a bit so the process can kick in (prevents 100s of jobs being sent to processor)
                     time.sleep(submit_sleep)
             elif (not job_finished[i]) and (not processes[i] is None):
                 # Ask the process how its doing
                 processes[i].poll()
                 # Check to see if the process has completed
-                if not processes[i].returncode is None:
+                if (not processes[i].returncode is None) and os.path.getsize(output_files[i]) > 0:
                     if os.path.isfile(flag_files[i]):
                         job_finished[i] = True
                         if verbose:
@@ -677,7 +680,7 @@ quit()
                             prog.tick()
                     else:
                         if verbose:
-                            print 'Job %d has failed - will try again later' % i + 1
+                            print 'Job %d has failed - will try again later' % (i + 1)
                         processes[i] = None
                     # Tidy up temp files
                     os.remove(script_files[i])
@@ -690,9 +693,9 @@ quit()
                     # Something useful happened
                     should_sleep = False
         if all(job_finished):
-            fear_finished = True 
-            if not verbose: 
-                prog.done()  
+            fear_finished = True
+            if not verbose:
+                prog.done()
         elif should_sleep:
             # Count how many jobs are queued
             n_queued = 0

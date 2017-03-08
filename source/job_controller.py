@@ -4,7 +4,7 @@ Main file for dispatching jobs to a cluster, creates remote files, etc.
 @authors: David Duvenaud (dkd23@cam.ac.uk)
           James Robert Lloyd (jrl44@cam.ac.uk)
           Roger Grosse (rgrosse@mit.edu)
-          
+
 Created Jan 2013
 '''
 
@@ -39,25 +39,25 @@ import shutil
 import random
 
 def evaluate_models(models, X, y, verbose=True, iters=300, local_computation=False, zip_files=False, max_jobs=500, random_seed=0, subset=False, subset_size=250, full_iters=0, bundle_size=1):
-   
+
     # Make data into matrices in case they're unidimensional.
     if X.ndim == 1: X = X[:, nax]
     if y.ndim == 1: y = y[:, nax]
     ndata = y.shape[0]
-    
+
     # Create data file
     if verbose:
         print 'Creating data file locally'
     data_file = cblparallel.create_temp_file('.mat')
 
     scipy.io.savemat(data_file, {'X': X, 'y': y})
-    
+
     # Move to fear if necessary
     if not local_computation:
         if verbose:
             print 'Moving data file to fear'
         cblparallel.copy_to_remote(data_file)
-    
+
     # Create a list of MATLAB scripts to assess and optimise parameters for each kernel
     if verbose:
         print 'Creating scripts'
@@ -83,34 +83,34 @@ def evaluate_models(models, X, y, verbose=True, iters=300, local_computation=Fal
         #### Need to be careful with % signs
         #### For the moment, cblparallel expects no single % signs - FIXME
         scripts[i] = re.sub('% ', '%% ', scripts[i])
-    
+
     # Send to cblparallel and save output_files
     if verbose:
         print 'Sending scripts to cblparallel'
     if local_computation:
-        output_files = cblparallel.run_batch_locally(scripts, language='matlab', max_cpu=1.1, job_check_sleep=5, submit_sleep=0.1, max_running_jobs=10, verbose=verbose)  
+        output_files = cblparallel.run_batch_locally(scripts, language='matlab', max_cpu=1.1, job_check_sleep=5, submit_sleep=0.1, max_running_jobs=10, verbose=verbose)
     else:
-        output_files = cblparallel.run_batch_on_fear(scripts, language='matlab', max_jobs=max_jobs, verbose=verbose, zip_files=zip_files, bundle_size=bundle_size)  
-    
+        output_files = cblparallel.run_batch_on_fear(scripts, language='matlab', max_jobs=max_jobs, verbose=verbose, zip_files=zip_files, bundle_size=bundle_size)
+
     # Read in results
     results = [None] * len(models)
     for (i, output_file) in enumerate(output_files):
         if verbose:
             print 'Reading output file %d of %d' % (i + 1, len(models))
         results[i] = GPModel.from_matlab_output(gpml.read_outputs(output_file), models[i], ndata)
-    
+
     # Tidy up local output files
     for (i, output_file) in enumerate(output_files):
         if verbose:
-            print 'Removing output file %d of %d' % (i + 1, len(models)) 
+            print 'Removing output file %d of %d' % (i + 1, len(models))
         os.remove(output_file)
     # Remove temporary data file (perhaps on the cluster server)
     cblparallel.remove_temp_file(data_file, local_computation)
-    
-    # Return results i.e. list of ScoredKernel objects
-    return results     
 
-   
+    # Return results i.e. list of ScoredKernel objects
+    return results
+
+
 def make_predictions(X, y, Xtest, ytest, model, local_computation=False, max_jobs=500, verbose=True, random_seed=0, no_noise=False):
     # Make data into matrices in case they're unidimensional.
     if X.ndim == 1: X = X[:, nax]
@@ -140,7 +140,7 @@ def make_predictions(X, y, Xtest, ytest, model, local_computation=False, max_job
     code = gpml.PREDICT_AND_SAVE_CODE % parameters
     code = re.sub('% ', '%% ', code) # HACK - cblparallel currently does not like % signs
     # Evaluate code - potentially on cluster
-    if local_computation:   
+    if local_computation:
         temp_results_file = cblparallel.run_batch_locally([code], language='matlab', max_cpu=1.1, max_mem=1.1, verbose=verbose)[0]
     else:
         temp_results_file = cblparallel.run_batch_on_fear([code], language='matlab', max_jobs=max_jobs, verbose=verbose)[0]
@@ -149,9 +149,9 @@ def make_predictions(X, y, Xtest, ytest, model, local_computation=False, max_job
     cblparallel.remove_temp_file(temp_results_file, local_computation)
     cblparallel.remove_temp_file(data_file, local_computation)
     # Return dictionary of MATLAB results
-    return results     
+    return results
 
-   
+
 def make_predictions(X, y, Xtest, ytest, model, local_computation=False, max_jobs=500, verbose=True, random_seed=0, no_noise=False):
     # Make data into matrices in case they're unidimensional.
     if X.ndim == 1: X = X[:, nax]
@@ -181,7 +181,7 @@ def make_predictions(X, y, Xtest, ytest, model, local_computation=False, max_job
     code = gpml.PREDICT_AND_SAVE_CODE % parameters
     code = re.sub('% ', '%% ', code) # HACK - cblparallel currently does not like % signs
     # Evaluate code - potentially on cluster
-    if local_computation:   
+    if local_computation:
         temp_results_file = cblparallel.run_batch_locally([code], language='matlab', max_cpu=1.1, max_mem=1.1, verbose=verbose)[0]
     else:
         temp_results_file = cblparallel.run_batch_on_fear([code], language='matlab', max_jobs=max_jobs, verbose=verbose)[0]
