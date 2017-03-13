@@ -11,9 +11,9 @@ Created April 2013
 import experiment
 import postprocessing
 
-experiment.run_experiment_file('../experiments/debug/debug_example.py')
+# experiment.run_experiment_file('../experiments/debug/debug_example.py')
 
 # To see the outcome of this experiment, look in examples/01-airline_result.txt
 
-postprocessing.make_all_1d_figures(folder='../examples/', save_folder='../examples/', rescale=False)
+postprocessing.make_all_1d_figures(folders='../results/debug/', data_folder='../results', save_folder='../examples/', rescale=False)
 

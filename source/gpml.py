@@ -12,6 +12,7 @@ nax = np.newaxis
 import scipy.io
 import tempfile, os
 import subprocess
+from time import sleep
 try:
     import config
 except:
@@ -32,7 +33,7 @@ def run_matlab_code(code, verbose=False, jvm=True):
 
     jvm_string = '-nojvm'
     if jvm: jvm_string = ''
-    call = [config.MATLAB_LOCATION, '-nosplash', jvm_string, '-nodisplay']
+    call = [config.MATLAB_LOCATION, '-nosplash', jvm_string, '-nodisplay', '-r', '"run(\''+script_file+'\');"']
     print call
 
     stdin = open(script_file)
@@ -64,11 +65,11 @@ def run_matlab_code(code, verbose=False, jvm=True):
         #### TODO - need to catch error local to new MLG machines
         print 'Matlab produced the following errors:\n\n%s' % err_txt
 #        raise RuntimeError('Matlab produced the following errors:\n\n%s' % err_txt)
-    else:
-        # Only remove temporary files if run was successful
-        os.remove(script_file)
-        os.remove(stdout_file)
-        os.remove(stderr_file)
+#     else:
+#         # Only remove temporary files if run was successful
+#         os.remove(script_file)
+#         os.remove(stdout_file)
+#         os.remove(stderr_file)
 
 
 
@@ -243,10 +244,14 @@ def order_by_mae(model, kernel_components, X, y, D, figname, skip_kernel_evaluat
         'figname': figname}
 
     if not skip_kernel_evaluation:
+        print code
         run_matlab_code(code, verbose=True, jvm=True)
     os.close(fd1)
     # The below is commented out whilst debugging
     #os.remove(temp_data_file)
+    while not os.path.exists(figname + '_mae_data.mat'):
+        print 'Sleep 1 second'
+        sleep(1)
     mae_data = scipy.io.loadmat(figname + '_mae_data.mat')
     component_order = mae_data['idx'].ravel() - 1 # MATLAB to python OBOE
     return (component_order, mae_data)
