@@ -11,7 +11,7 @@ Created April 2013
 import experiment
 import postprocessing
 
-# experiment.run_experiment_file('../experiments/debug/debug_example.py')
+experiment.run_experiment_file('../experiments/debug/debug_example.py')
 
 # To see the outcome of this experiment, look in examples/01-airline_result.txt
 
